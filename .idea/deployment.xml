@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="wangshanshan-slurm@10.102.32.68:22" autoUploadExternalChanges="true">
+    <serverData>
+      <paths name="71-mu01">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/wangshanshan-slurm/sigir-2021" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="Copy of project-level server 'oldServer'">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="wangshanshan-slurm@10.102.32.68:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/data/wangshanshan-slurm/sigir-2021" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="wangshanshan@10.102.32.71:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/wangshanshan/sigir-2021" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="人工智能学院-68">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/wangshanshan/sigir-2021" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="人工智能学院-69">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
