@@ -12,13 +12,12 @@ import argparse
 import prototype_model
 import cnn_model
 import process_raw
-import utils
 
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import random
-from classificationModel import  Classifier
+import classificationModel
 
 #设置随机种子
 seed=2021
@@ -36,7 +35,8 @@ PARSER.add_argument('-datadir','--datadir',default='/home/wangshanshan/sigir-202
 # 图卷积相关参数
 PARSER.add_argument('-input_dim','--input_dim',default=4095,type=int)
 PARSER.add_argument('-hidden_dim_list','--hidden_dim_list',default=[200,100])
-#PARSER.add_argument('-fixed_node_num','--fixed_node_num',default=50)
+
+PARSER.add_argument('-batch_size','--batch_size',default=64)
 
 # few-shot learning阶段
 PARSER.add_argument('-max_epochs','--max_epochs',default=1000,type=int,help='training epochs')
@@ -56,7 +56,8 @@ args=PARSER.parse_args()
 args.device=('cuda:0' if torch.cuda.is_available() else 'cpu')
 print('args.device:',args.device)
 
-def train(model,optimizer,train_x,train_y,args):
+
+def train(model,optimizer,dataset,args):
     '''
     :param model:
     :param optimizer:
@@ -65,6 +66,8 @@ def train(model,optimizer,train_x,train_y,args):
     :param args:
     :return:
     '''
+    dataloader=DataLoader(dataset,batch_size=args.batch_size,shuffle=True)
+
     model.train()
 
     scheduler=optim.lr_scheduler.StepLR(optimizer,1,gamma=0.5,last_epoch=-1)
@@ -75,11 +78,10 @@ def train(model,optimizer,train_x,train_y,args):
         running_loss=0.0
         running_acc=0.0
 
-        for episode in range(args.max_episode):
-            sample=utils.create_sample(train_x,train_y,args)
+        for batch_x,batch_y in dataloader:
             optimizer.zero_grad()
 
-            loss,output=model.set_forward_loss(sample)
+            loss,output=model.set_forward_loss(batch_x,batch_y)
             running_loss+=output['loss']
             running_acc+=output['acc']
 
@@ -98,20 +100,22 @@ if __name__ == '__main__':
     # if os.path.exists():
     #     pass
     # else:
-    data,labels,word2ix, ix2word=process_raw.get_data(os.path.join("/home/wangshanshan/sigir-2021/data",'background'))
+    # data,labels,word2ix, ix2word=process_raw.get_data(os.path.join("/home/wangshanshan/sigir-2021/data",'background'))
 
-    args.word2ix=word2ix
-    args.ix2word=ix2word
+    # 创建dataset对象
+    ehrdataset=process_raw.EHRDataset()
+    args.word2ix = ehrdataset.word2ix
+    args.ix2word = ehrdataset.ix2word
 
     # step2:创建模型
     encoder=cnn_model.EHREncoder(args)
     encoder.to(args.device)
-    model=prototype_model.ProtoNet(args,encoder)
+    model=classificationModel.Classifier(args,encoder)
     model.to(args.device)
     optimizer=optim.Adam(model.parameters(),lr=args.lr)
 
     # step3:训练模型
-    train(model, optimizer,data,labels, args)
+    train(model, optimizer,ehrdataset,args)
     # step4:测试模型
     #test()
 

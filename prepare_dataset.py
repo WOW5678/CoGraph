@@ -240,7 +240,7 @@ def pad_graph(graph,fixed_node_num):
 if __name__ == '__main__':
     train_class_number,test_class_number=split_class('data/EHR-label-entity-kg.csv',sample_min_number=5)
     regular_files('data/label_entity.pkl','data/EHR-label-entity-kg.csv',train_class_number,test_class_number)
-    #create_graph_paths('data\\background','data/label_entity.pkl')
+    create_graph_paths('data\\background','data/label_entity.pkl')
 
 
 

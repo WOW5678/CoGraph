@@ -94,5 +94,5 @@ def get_label_desc(ICD_desc_file):
 if __name__ == '__main__':
     # step1: extract entity
     label_desc=get_label_desc('data/ICD9_descriptions.txt')
-    extract_entity('data/note_labeled.csv',label_desc)
+    extract_entity('data/note_labeled_test.csv',label_desc)
 

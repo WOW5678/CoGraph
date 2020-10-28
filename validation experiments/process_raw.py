@@ -8,6 +8,24 @@
 import os
 import csv
 import numpy as np
+import torch
+from torch.utils.data import Dataset,DataLoader
+
+class EHRDataset(Dataset):
+
+    def __init__(self):
+        pad_data, labels, word2ix, ix2word = get_data(os.path.join("data", 'background'))
+        self.x=pad_data
+        self.y=labels
+        self.word2ix=word2ix
+        self.ix2word=ix2word
+
+    def __getitem__(self, index):
+        return self.x[index],self.y[index]
+
+    def __len__(self):
+        return len(self.x)
+
 
 
 def get_data(data_dir):
@@ -37,6 +55,8 @@ def get_data(data_dir):
     pad_data=pad_ehr(new_data,maxlen=None,padding='pre',truncating='pre',value=word2ix['<PAD>'])
 
     return pad_data,labels,word2ix,ix2word
+
+
 
 def pad_ehr(sequences,maxlen=None,dtype='int32',padding='pre',truncating='pre',value=0.):
     '''
@@ -85,7 +105,3 @@ def pad_ehr(sequences,maxlen=None,dtype='int32',padding='pre',truncating='pre',v
         else:
             raise ValueError('Padding type %s not understand.'%padding)
     return x
-
-
-if __name__ == '__main__':
-    pad_data,labels,word2ix,ix2word=get_data(os.path.join("F:\SIGIR2021\sigir-2021\data",'background'))

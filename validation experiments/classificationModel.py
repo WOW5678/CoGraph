@@ -16,10 +16,10 @@ class Classifier(nn.Module):
         self.encoder=encoder
         self.fc=nn.Linear(200,1)
 
-    def forward(self,sample):
+    def set_forward_loss(self,batch_x,batch_y):
 
        target_inds = torch.arange(0, n_way).view(n_way, 1, 1).expand(n_way, n_query, 1).long().to(self.args.device)
-       z=self.encoder(sample)
+       z=self.encoder(batch_x)
        output=self.fc(z)
 
        # 计算概率
