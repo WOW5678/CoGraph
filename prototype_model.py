@@ -8,6 +8,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import full_eval
 
 class ProtoNet(nn.Module):
     def __init__(self,args,encoder):
@@ -32,7 +33,12 @@ class ProtoNet(nn.Module):
         x_support=sample_nodes[:,:n_support] #[n_way,n_support, 30]
         x_query=sample_nodes[:,n_support:]   #[n_way,n_query, 30]
 
-        target_inds=torch.arange(0,n_way).view(n_way,1,1).expand(n_way,n_query,1).long().to(self.args.device)
+        #target_inds=torch.arange(0,n_way).view(n_way,1,1).expand(n_way,n_query,1).long().to(self.args.device)
+        target_indx=torch.arange(0,n_way).view(n_way,1).expand(n_way,n_query)
+        target_indx=target_indx.contiguous().view(n_way*n_query,1).long().to(self.args.device)
+        target_onehot = torch.FloatTensor(target_indx.size(0), n_way).float().to(self.args.device)
+        target_onehot.zero_()
+        target_onehot.scatter_(1, target_indx, 1)
 
 
         adj = torch.cat([adj_support.contiguous().view(n_way * n_support, *adj_support.size()[2:]),
@@ -40,23 +46,33 @@ class ProtoNet(nn.Module):
         x = torch.cat([x_support.contiguous().view(n_way * n_support, *x_support.size()[2:]),
                          x_query.contiguous().view(n_way * n_query, *x_query.size()[2:])], 0)  #
         # 对图执行编码
-        z = self.encoder.forward(adj,x)  # [n_way*(n_support+n_query),64]
+        z = self.encoder.forward(adj,x)  # [n_way*(n_support+n_query),100]
 
         z_dim = z.size(-1)  # 64
-        z_proto = z[:n_way * n_support].view(n_way, n_support, z_dim).mean(1)  # [n_way,64]
-        z_query = z[n_way * n_query:]  # (n_way*n_query,64)
+        z_proto = z[:n_way * n_support].view(n_way, n_support, z_dim).mean(1)  # [n_way,100]
+        z_query = z[n_way * n_support:]  # (n_way*n_query,100)
 
         # 计算距离
-        dists = euclidean_dist(z_query, z_proto)  # [n_way*n_query,n_way]
+        #dists = euclidean_dist(z_query, z_proto)  # [n_way*n_query,n_way]
 
-        # 计算概率
-        log_p_y = F.log_softmax(-dists, dim=1).view(n_way, n_query, -1)  # [n_way,n_query,n_way]
+        # # 计算概率
+        # log_p_y = F.log_softmax(-dists, dim=1).view(n_way, n_query, -1)  # [n_way,n_query,n_way]
+        #
+        # loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()  # scalar
+        # _, y_hat = log_p_y.max(2)  # y_hat:[n_way,n_query] ,_:[n_way,n_query]
+        # acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()  # scalar
 
-        loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()  # scalar
-        _, y_hat = log_p_y.max(2)  # y_hat:[n_way,n_query] ,_:[n_way,n_query]
-        acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()  # scalar
+        ###############################################################################
+        scores = matching_score(z_query, z_proto)  # [n_way*n_query,n_way]
+        output=F.sigmoid(scores)
+        loss = F.binary_cross_entropy(output,target_onehot)
 
-        return loss_val, {'loss': loss_val.item(), 'acc': acc_val.item(), 'y_hat': y_hat}
+        pred=(output>0.5).long().cpu()
+        from sklearn.metrics import accuracy_score
+        acc, prec, recall, f1=full_eval.get_statistic(pred,target_onehot.cpu())
+        return loss,acc,prec,recall,f1
+
+        #return loss_val, {'loss': loss_val.item(), 'acc': acc_val.item(), 'y_hat': y_hat}
 
 def euclidean_dist(x,y):
     '''
@@ -73,3 +89,13 @@ def euclidean_dist(x,y):
     y=y.unsqueeze(0).expand(n,m,d) # y.unsqueeze(1):(1,m,d)
     return torch.pow(x-y,2).sum(2) # (n,m)
 
+def matching_score(x,y):
+    '''
+
+    :param x: query sample [n_way*n_query,64]
+    :param y: class prototype [n_way,64]
+    :return: matching scores [n_way*n_query,n_way]
+    '''
+    assert x.size(1) == y.size(1)
+    scores=torch.matmul(x,y.t())
+    return scores

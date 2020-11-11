@@ -51,7 +51,7 @@ def split_class(filename,sample_min_number):
     print('test class number:',len(test_class_number))
     return train_class_number,test_class_number
 
-def regular_files(label_entity_pickle_file,filename,train_class_number,test_class_number):
+def regular_files(filename,train_class_number,test_class_number):
     '''
     将每个class对应的样本的样本写入到对应的文件中
 
@@ -62,23 +62,22 @@ def regular_files(label_entity_pickle_file,filename,train_class_number,test_clas
     :return:
     '''
     #加载处理好的label实体文件
-    with open(label_entity_pickle_file,'rb') as f:
-        label_entity=pickle.load(f)
-
+    # with open(label_entity_pickle_file,'rb') as f:
+    #     label_entity=pickle.load(f)
+    remove_last_dirs()
     with open(filename,'r') as f:
         reader=csv.reader(f)
         data=[row for row in reader][1:]
         for row in data:
             labels=row[4].split(';')
             for label in labels:
-                entities=';'.join(label_entity.get(label))
                 if label in train_class_number:
                     if not os.path.exists('data/background/%s'%(label)):
                         os.makedirs('data/background/%s'%(label))
                     # 打开这个新创建的csv文件 并将改行数据写入进去
                     with open('data/background/%s/samples_%s.csv'%(label,label),'a+',newline='') as f_w:
                         writer = csv.writer(f_w)
-                        writer.writerow([row[0],row[1],row[2],row[3],label,entities])
+                        writer.writerow([row[0],row[1],row[2],row[3],label])
 
                 elif label in test_class_number:
                     if not os.path.exists('data/evaluation/%s' % (label)):
@@ -86,32 +85,24 @@ def regular_files(label_entity_pickle_file,filename,train_class_number,test_clas
                     # 打开这个新创建的csv文件 并将改行数据写入进去
                     with open('data/evaluation/%s/samples_%s.csv' % (label, label), 'a+',newline='') as f_w:
                         writer = csv.writer(f_w)
-                        writer.writerow([row[0], row[1], row[2], row[3], label, entities])
+                        writer.writerow([row[0], row[1], row[2], row[3], label])
                 else:
                     print('There are some errors.')
 
+def remove_last_dirs():
+    if os.path.exists('data/background'):
+        os.rmdir('data/background')
 
-
-def create_graph_paths(data_dir,label_entity_pickle_file):
-    '''
-    将每个样本转换为graph
-    :param data_dir:样本所在的文件夹
-    :param label_entity_pickle_file: ICD以及对应的实体（dict）
-    :return:
-    '''
-    fixed_node_num=300
-
+def get_entities(data_dir):
     # step1:先要统计出所有的实体个数，实体类型包括EHR,entities, ICD
-    EHR_set,ICD_set,ENTITY_set=set(),set(),set()
-    # 加载label_entities dict
-    with open(label_entity_pickle_file, 'rb') as f:
-        label_entity = pickle.load(f)
-    for root,dirs,files in os.walk(data_dir):
+    EHR_set, ICD_set, ENTITY_set = set(), set(), set()
+
+    for root, dirs, files in os.walk(data_dir):
         for file in files:
-            file_path=os.path.join(root,file)
+            file_path = os.path.join(root, file)
             # 打开file_path文件
-            with open(file_path,'r') as f:
-                reader=csv.reader(f)
+            with open(file_path, 'r') as f:
+                reader = csv.reader(f)
                 data = [row for row in reader]
                 for row in data:
                     # EHR_set.add('E_'+row[1])
@@ -120,23 +111,21 @@ def create_graph_paths(data_dir,label_entity_pickle_file):
                     ICD_set.add(row[4])
                     for item in row[3].split(';'):
                         ENTITY_set.add(item)
-            print('root:',root)
-            label=root.split('\\')[-1]
-            if label in label_entity and len(label_entity.get(label))>0:
-                entities=label_entity.get(label)
-                for item in entities:
-                    ENTITY_set.add(item)
-    print(len(EHR_set),EHR_set)
-    print(len(ICD_set),ICD_set)
-    print(len(ENTITY_set),ENTITY_set)
-    # step2: 将所有的实体进行ID化
-    EHR2ID={e:(id+1) for id,e in enumerate(EHR_set)}
-    #ICD2ID={icd:(id+1)+len(EHR_set) for id,icd in enumerate(ICD_set)}
-    ENTITY2ID={entity:(id+1)+len(EHR_set) for id,entity in enumerate(ENTITY_set)}
-    ALL2ID=dict(EHR2ID,**ENTITY2ID)
-    ALL2ID['PAD']=0
-    print(len(ALL2ID),'all2id:',ALL2ID)
+            print('root:', root)
 
+    print(len(EHR_set), EHR_set)
+    print(len(ICD_set), ICD_set)
+    print(len(ENTITY_set), ENTITY_set)
+    return EHR_set,ENTITY_set
+
+def create_graph_paths(data_dir,ALL2ID):
+    '''
+    将每个样本转换为graph
+    :param data_dir:样本所在的文件夹
+    :param label_entity_pickle_file: ICD以及对应的实体（dict）
+    :return:
+    '''
+    fixed_node_num=300
     # step3: 建立graph
     graphs=[]
     nodes=[]
@@ -144,9 +133,7 @@ def create_graph_paths(data_dir,label_entity_pickle_file):
     for root,dirs,files in os.walk(data_dir):
         for file in files:
             file_path=os.path.join(root,file)
-            #label = root.split('/')[-1]
-            # if label in label_entity:
-            #     entities = label_entity.get(label)
+            label = root.split('/')[-1]
 
             # 打开file_path文件
             with open(file_path,'r') as f:
@@ -178,7 +165,7 @@ def create_graph_paths(data_dir,label_entity_pickle_file):
     print('label_number:',len(labels))
     graph_samples=list(zip(graphs,nodes))
 
-    return graph_samples,labels,ALL2ID,fixed_node_num
+    return graph_samples,labels,fixed_node_num
 
 
 
@@ -239,8 +226,8 @@ def pad_graph(graph,fixed_node_num):
 
 if __name__ == '__main__':
     train_class_number,test_class_number=split_class('data/EHR-label-entity-kg.csv',sample_min_number=5)
-    regular_files('data/label_entity.pkl','data/EHR-label-entity-kg.csv',train_class_number,test_class_number)
-    create_graph_paths('data\\background','data/label_entity.pkl')
+    regular_files('data/EHR-label-entity-kg.csv',train_class_number,test_class_number)
+    #create_graph_paths('data\\background')
 
 
 

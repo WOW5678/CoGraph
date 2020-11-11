@@ -51,7 +51,43 @@ def create_sample(graphs,labels,args):
              'n_query':n_query,
              })
 
+def create_test_sample(graphs,labels,args):
+    test_n_way, test_n_support, test_n_query = args.test_n_way, args.test_n_support, args.test_n_query
+    sample = []
+    nodes_sample = []
+    # 随机选取n_way个class
+    k = random.sample(set(labels), test_n_way)
 
+    for cls in k:
+        # 筛选出该cls对应的样本数据
+        datax_cls = []
+        # datax_cls=graphs[labels==cls]
+        # 对筛选出的数据进行随机打乱
+        # perm=np.random.permutation(datax_cls)
+        for i, label in enumerate(labels):
+            if label == cls:
+                datax_cls.append(graphs[i])
+
+        # # 从数据中随机选择出n_support+n_query个样本
+        if len(datax_cls)<test_n_query+test_n_support:
+            continue
+        else:
+            sample_cls = random.sample(datax_cls, test_n_support + test_n_query)
+
+        sample.append(np.stack([s[0] for s in sample_cls], 0))
+        nodes_sample.append(np.stack([s[1] for s in sample_cls], 0))
+    if len(sample)>=1:
+        sample = np.stack(sample, 0)
+        nodes_sample = np.stack(nodes_sample, 0)
+        # print('sample.shape:',sample.shape)
+        return ({'graphs': sample,
+                 'graph_nodes': nodes_sample,
+                 'n_way': sample.shape[0],
+                 'n_support': test_n_support,
+                 'n_query': test_n_query,
+                 })
+    else:
+        return None
 
 
 
